@@ -1,0 +1,26 @@
+# Unity Generated Files
+Library/
+Logs/
+Temp/
+obj/
+Build/
+Builds/
+UserSettings/
+MemoryCaptures/
+
+# Visual Studio / VS Code
+*.sln
+*.csproj
+*.suo
+*.user
+*.userprefs
+.vs/
+.vscode/
+
+# Other
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.DS_Store

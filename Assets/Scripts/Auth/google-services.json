@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "994259550452",
+    "project_id": "educational-kids-game-public",
+    "storage_bucket": "educational-kids-game-public.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:994259550452:android:6220005f99d73a495adea1",
+        "android_client_info": {
+          "package_name": "com.Elmod7ken.Educational_kids_Game"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdNlpxddOZczX2FQeQz_MPV1-JhHOcTyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
