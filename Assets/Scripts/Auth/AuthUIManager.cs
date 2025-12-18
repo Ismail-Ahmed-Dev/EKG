@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -24,7 +24,7 @@ public class AuthUIManager : MonoBehaviour
 
     [Header("Feedback")]
     public TMP_Text messageText;
-    public GameObject loadingPanel;
+    //public GameObject loadingPanel;
 
     private AuthService authService;
     private DatabaseService dbService;
@@ -34,46 +34,25 @@ public class AuthUIManager : MonoBehaviour
         authService = new AuthService();
         dbService = new DatabaseService();
 
-        // تعريف الأزرار
+        // Setup button listeners
         loginButton.onClick.AddListener(OnLoginClicked);
         signupButton.onClick.AddListener(OnSignupClicked);
         goToSignupBtn.onClick.AddListener(() => ShowPanel(false));
         goToLoginBtn.onClick.AddListener(() => ShowPanel(true));
 
-        // 1. إخفاء كل شيء مبدئياً لضمان عدم تداخل الشاشات
-        loginPanel.SetActive(false);
-        signupPanel.SetActive(false);
-        if (loadingPanel != null) loadingPanel.SetActive(false); // تأكد أن التحميل مخفي
+        // Check if user is already logged in
+        FirebaseManager.Instance.OnAuthStateChanged += OnUserLoggedIn;
 
-        // 2. الاشتراك في الحدث
-        FirebaseManager.Instance.OnAuthStateChanged += OnAuthStateChanged;
-
-        // 3. (الإصلاح هنا) التحقق اليدوي الفوري
-        if (FirebaseManager.Instance.Auth.CurrentUser != null)
-        {
-            // ✅ حالة 1: المستخدم مسجل -> اذهب للعبة
-            OnAuthStateChanged(FirebaseManager.Instance.Auth.CurrentUser);
-        }
-        else
-        {
-            // ✅ حالة 2: المستخدم غير مسجل (راجع من Logout) -> اظهر شاشة الدخول
-            ShowPanel(true);
-        }
+        ShowPanel(true);
+        //HideLoading();
     }
 
-    private void OnAuthStateChanged(Firebase.Auth.FirebaseUser user)
+    private void OnUserLoggedIn(Firebase.Auth.FirebaseUser user)
     {
         if (user != null)
         {
-            // ✅ المستخدم مسجل من قبل (تذكرني) -> اذهب للقائمة الرئيسية فوراً
-            Debug.Log("User already logged in. Redirecting to MainMenu...");
-            SceneManager.LoadScene("MainMenu");
-        }
-        else
-        {
-            // ❌ لا يوجد مستخدم محفوظ -> اظهر شاشة تسجيل الدخول
-            ShowPanel(true); // true يعني اظهر Login
-            if (messageText != null) messageText.text = "";
+            // User is logged in, go to main scene
+            SceneManager.LoadScene("MainScene");
         }
     }
 
@@ -84,12 +63,11 @@ public class AuthUIManager : MonoBehaviour
 
         if (!ValidateLoginInputs(email, password)) return;
 
-        ShowLoading();
-        ShowMessage("", Color.white);
+        //ShowLoading();
 
         var result = await authService.Login(email, password);
 
-        HideLoading();
+        //HideLoading();
 
         if (result.success)
         {
@@ -108,46 +86,34 @@ public class AuthUIManager : MonoBehaviour
         string email = signupEmail.text.Trim();
         string password = signupPassword.text;
 
-        // 1. التحقق من صحة المدخلات (قبل التحميل)
         if (!ValidateSignupInputs(name, email, password)) return;
 
-        // 2. تفعيل شاشة التحميل
-        ShowLoading();
-        ShowMessage("", Color.white); // مسح أي رسائل سابقة
+        //ShowLoading();
 
-        // 3. محاولة إنشاء الحساب
         var result = await authService.Signup(email, password);
-
-        // 🛑 حماية: التأكد أن الواجهة لم تدمر أثناء الانتظار
-        if (this == null || gameObject == null) return;
 
         if (result.success)
         {
-            // 4. حفظ بيانات المستخدم الإضافية
+            // Save user data
             UserData userData = new UserData(name, email);
             bool saved = await dbService.SaveUserData(result.user.UserId, userData);
 
-            // 🛑 حماية ثانية بعد الانتظار الثاني
-            if (this == null || gameObject == null) return;
+            //HideLoading();
 
             if (saved)
             {
-                // ✅ نجاح تام:
-                // لن نقوم بإخفاء التحميل (HideLoading) هنا،
-                // لأننا نريد أن يظل المستخدم يرى "Loading" حتى يتم نقله للمشهد التالي تلقائياً
-                ShowMessage("Account created! Entering game...", Color.green);
+                ShowMessage("Account created successfully! Logging in...", Color.green);
+                await System.Threading.Tasks.Task.Delay(1500);
+                ShowPanel(true);
             }
             else
             {
-                // ⚠️ الحساب أنشئ لكن البيانات لم تحفظ:
-                HideLoading(); // نخفي التحميل ليراها المستخدم
                 ShowMessage("Account created but failed to save data", Color.yellow);
             }
         }
         else
         {
-            // ❌ فشل إنشاء الحساب:
-            HideLoading(); // ضروري جداً إخفاء التحميل ليتمكن من المحاولة مجدداً
+            //HideLoading();
             ShowMessage(result.message, Color.red);
         }
     }
@@ -200,25 +166,23 @@ public class AuthUIManager : MonoBehaviour
         messageText.text = "";
     }
 
-
-
     private void ShowMessage(string message, Color color)
     {
         messageText.text = message;
         messageText.color = color;
     }
 
-    private void ShowLoading()
-    {
-        if (loadingPanel != null)
-            loadingPanel.SetActive(true);
-    }
+    //private void ShowLoading()
+    //{
+    //    if (loadingPanel != null)
+    //        loadingPanel.SetActive(true);
+    //}
 
-    private void HideLoading()
-    {
-        if (loadingPanel != null)
-            loadingPanel.SetActive(false);
-    }
+    //private void HideLoading()
+    //{
+    //    if (loadingPanel != null)
+    //        loadingPanel.SetActive(false);
+    //}
 
     private void ClearInputs()
     {
@@ -232,6 +196,6 @@ public class AuthUIManager : MonoBehaviour
     private void OnDestroy()
     {
         if (FirebaseManager.Instance != null)
-            FirebaseManager.Instance.OnAuthStateChanged -= OnAuthStateChanged;
+            FirebaseManager.Instance.OnAuthStateChanged -= OnUserLoggedIn;
     }
 }
