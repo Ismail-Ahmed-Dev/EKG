@@ -34,6 +34,7 @@ public class FirebaseManager : MonoBehaviour
     {
         Debug.Log("Starting Firebase Initialization...");
 
+        // استخدام ContinueWithOnMainThread بدلاً من ContinueWith العادية
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
             var dependencyStatus = task.Result;
@@ -43,30 +44,23 @@ public class FirebaseManager : MonoBehaviour
                 // تهيئة Authentication
                 Auth = FirebaseAuth.DefaultInstance;
 
-                // =========================================================
-                // الحل الجذري لمشكلة Database Reference null
-                // =========================================================
+                // تهيئة Database (مع معالجة حالة عدم وجود الرابط)
                 try
                 {
-                    // 🔴🔴🔴 ضع الرابط الذي نسخته هنا بين علامات التنصيص 🔴🔴🔴
-                    string databaseUrl = "https://educational-kids-game-public-default-rtdb.europe-west1.firebasedatabase.app/";
-
-                    // استخدام الرابط المباشر بدلاً من DefaultInstance
-                    DbReference = FirebaseDatabase.GetInstance(databaseUrl).RootReference;
-
-                    Debug.Log("✅ Database connected successfully to: " + databaseUrl);
+                    DbReference = FirebaseDatabase.DefaultInstance.RootReference;
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"❌ Database connection failed: {ex.Message}");
+                    Debug.LogError($"❌ Database URL missing or setup error: {ex.Message}");
                 }
-                // =========================================================
 
                 IsInitialized = true;
 
+                // Monitor authentication state changes
                 if (Auth != null)
                 {
                     Auth.StateChanged += HandleAuthStateChanged;
+                    Debug.Log("✅ Firebase initialized successfully");
                 }
             }
             else
@@ -75,6 +69,7 @@ public class FirebaseManager : MonoBehaviour
             }
         });
     }
+
     private void HandleAuthStateChanged(object sender, EventArgs e)
     {
         if (Auth.CurrentUser != null)
