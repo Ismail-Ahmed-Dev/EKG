@@ -1,60 +1,81 @@
-﻿using UnityEngine;
-using Firebase.Database;
+﻿using Firebase.Database;
+using System;
 using System.Threading.Tasks;
+using UnityEngine;
 
 public class DatabaseService
 {
-    private DatabaseReference dbRef => FirebaseManager.Instance.DbReference;
+    private DatabaseReference dbRef;
 
-    // Save user data
-    // داخل DatabaseService.cs
-
-    public async Task<bool> SaveUserData(string userId, UserData userData)
+    public DatabaseService()
     {
-        // فحص الأمان: هل المدير موجود؟ وهل قاعدة البيانات جاهزة؟
-        if (FirebaseManager.Instance == null || FirebaseManager.Instance.DbReference == null)
+        // التعديل هنا: نأخذ المرجع الجاهز من FirebaseManager بدلاً من خلقه من جديد
+        if (FirebaseManager.Instance != null)
         {
-            Debug.LogError("❌ Database is not initialized yet!");
+            dbRef = FirebaseManager.Instance.DbReference;
+        }
+    }
+
+    // Save user data (كما هي لم تتغير)
+    public async Task<bool> SaveUserData(string userId, UserData data)
+    {
+        // حماية إضافية
+        if (dbRef == null)
+        {
+            Debug.LogError("Database Reference is missing!");
             return false;
         }
 
         try
         {
-            string json = JsonUtility.ToJson(userData);
+            string json = JsonUtility.ToJson(data);
             await dbRef.Child("users").Child(userId).SetRawJsonValueAsync(json);
-            Debug.Log("✅ User data saved successfully");
             return true;
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            Debug.LogError($"❌ Error saving data: {ex.Message}");
+            Debug.LogError($"Save Error: {ex.Message}");
             return false;
         }
     }
 
-    // Get user data
+    // Get user data (هنا كان يحدث الخطأ)
     public async Task<UserData> GetUserData(string userId)
     {
+        // 1. فحص الأمان: هل المرجع موجود؟
+        if (dbRef == null)
+        {
+            // محاولة أخيرة لجلبه من المدير
+            if (FirebaseManager.Instance != null)
+                dbRef = FirebaseManager.Instance.DbReference;
+
+            // إذا ظل فارغاً، نرمي خطأ واضح بدلاً من تحطيم اللعبة
+            if (dbRef == null)
+            {
+                Debug.LogError("Critical Error: Database reference is null. Check Firebase Console configuration.");
+                return null;
+            }
+        }
+
         try
         {
+            // هذا السطر (57 سابقاً) هو الذي كان يسبب المشكلة إذا كان dbRef فارغاً
             var snapshot = await dbRef.Child("users").Child(userId).GetValueAsync();
 
             if (snapshot.Exists)
             {
                 string json = snapshot.GetRawJsonValue();
-                UserData userData = JsonUtility.FromJson<UserData>(json);
-                Debug.Log($"✅ User data loaded: {userData.name}");
-                return userData;
+                return JsonUtility.FromJson<UserData>(json);
             }
             else
             {
-                Debug.LogWarning("⚠️ No user data found");
+                Debug.LogWarning("User data not found for ID: " + userId);
                 return null;
             }
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            Debug.LogError($"❌ Error loading data: {ex.Message}");
+            Debug.LogError("Error loading data: " + ex.Message);
             return null;
         }
     }
@@ -72,6 +93,41 @@ public class DatabaseService
         {
             Debug.LogError($"❌ Error updating stars: {ex.Message}");
             return false;
+        }
+    }
+
+    public async Task AddStars(string userId, int starsEarned)
+    {
+        if (dbRef == null) return;
+
+        Debug.Log($"⏳ Attempting to add {starsEarned} stars for user: {userId}");
+
+        try
+        {
+            // 1. Fetch current star count
+            var snapshot = await dbRef.Child("users").Child(userId).Child("stars").GetValueAsync();
+
+            long currentStars = 0;
+
+            if (snapshot.Exists && snapshot.Value != null)
+            {
+                // Safely convert data regardless of type (int/long/double)
+                currentStars = System.Convert.ToInt64(snapshot.Value);
+            }
+
+            Debug.Log($"🌟 Current stars: {currentStars}");
+
+            // 2. Calculate new total
+            long newTotal = currentStars + starsEarned;
+
+            // 3. Save to database
+            await dbRef.Child("users").Child(userId).Child("stars").SetValueAsync(newTotal);
+
+            Debug.Log($"✅ Saved successfully! New total: {newTotal}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"❌ Failed to save stars: {ex.Message}");
         }
     }
 
